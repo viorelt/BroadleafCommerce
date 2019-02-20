@@ -20,6 +20,8 @@ package org.broadleafcommerce.core.search.domain;
 import com.google.common.base.Strings;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.broadleafcommerce.common.admin.domain.AdminMainEntity;
 import org.broadleafcommerce.common.copy.CreateResponse;
 import org.broadleafcommerce.common.copy.MultiTenantCopyContext;
@@ -27,6 +29,8 @@ import org.broadleafcommerce.common.extensibility.jpa.copy.DirectCopyTransform;
 import org.broadleafcommerce.common.extensibility.jpa.copy.DirectCopyTransformMember;
 import org.broadleafcommerce.common.extensibility.jpa.copy.DirectCopyTransformTypes;
 import org.broadleafcommerce.common.i18n.service.DynamicTranslationProvider;
+import org.broadleafcommerce.common.persistence.ArchiveStatus;
+import org.broadleafcommerce.common.persistence.Status;
 import org.broadleafcommerce.common.presentation.*;
 import org.broadleafcommerce.common.presentation.client.AddMethodType;
 import org.broadleafcommerce.common.presentation.client.VisibilityEnum;
@@ -34,6 +38,7 @@ import org.broadleafcommerce.common.presentation.override.AdminPresentationMerge
 import org.broadleafcommerce.common.presentation.override.AdminPresentationMergeOverride;
 import org.broadleafcommerce.common.presentation.override.AdminPresentationMergeOverrides;
 import org.broadleafcommerce.common.presentation.override.PropertyType;
+import org.broadleafcommerce.common.site.domain.CatalogImpl;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.*;
 import org.hibernate.annotations.Parameter;
@@ -74,9 +79,10 @@ import java.util.List;
                 @AdminPresentationMergeEntry(propertyType = PropertyType.AdminPresentation.FRIENDLYNAME, overrideValue = "IndexFieldTypeImpl_searchable")
         })
 })
-public class SearchFacetImpl implements SearchFacet, Serializable, AdminMainEntity, SearchFacetAdminPresentation {
+public class SearchFacetImpl implements SearchFacet, Serializable, AdminMainEntity, SearchFacetAdminPresentation, Status {
 
     private static final long serialVersionUID = 1L;
+    private static final Log LOG = LogFactory.getLog(SearchFacetImpl.class);
 
     @Id
     @GeneratedValue(generator = "SearchFacetId")
@@ -162,6 +168,9 @@ public class SearchFacetImpl implements SearchFacet, Serializable, AdminMainEnti
             group = GroupName.Dependent,
             defaultValue = "false")
     protected Boolean requiresAllDependentFacets = false;
+
+    @Embedded
+    protected ArchiveStatus archiveStatus = new ArchiveStatus();
 
     @Override
     public Long getId() {
@@ -310,6 +319,35 @@ public class SearchFacetImpl implements SearchFacet, Serializable, AdminMainEnti
         }
 
         return createResponse;
+    }
+
+    @Override
+    public Character getArchived() {
+        ArchiveStatus temp;
+        if (archiveStatus == null) {
+            temp = new ArchiveStatus();
+        } else {
+            temp = archiveStatus;
+        }
+        return temp.getArchived();
+    }
+
+    @Override
+    public boolean isActive() {
+        if (LOG.isDebugEnabled()) {
+            if ('Y' == getArchived()) {
+                LOG.debug("catalog, " + id + ", inactive due to archived status");
+            }
+        }
+        return 'Y' != getArchived();
+    }
+
+    @Override
+    public void setArchived(Character archived) {
+        if (archiveStatus == null) {
+            archiveStatus = new ArchiveStatus();
+        }
+        archiveStatus.setArchived(archived);
     }
 
     @Override
